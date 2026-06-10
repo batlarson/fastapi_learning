@@ -1,0 +1,14 @@
+Swagger automático sin instalar nada ni configurar nada. En Django necesitabas drf-spectacular y configurarlo. En FastAPI viene incluido por defecto.
+Esa es una de las grandes ventajas de FastAPI — documentación interactiva automática basada en el código.
+Ahora la diferencia más importante con Django. En Django usas serializers para validar datos. En FastAPI usas Pydantic models.
+
+Tres diferencias clave que ya has visto:
+                 Django DRF                 FastAPI
+Validación       Serializers                Pydantic automático
+Documentación    drf-spectacular (instalar) Swagger incluido
+Servidor         Gunicorn                   Uvicorn
+
+La regla es simple:
+
+{ticker} en la ruta → path parameter → obligatorio
+ticker: str = None en la función sin {} → query parameter → opcional
