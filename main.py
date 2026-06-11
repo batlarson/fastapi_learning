@@ -1,8 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Optional
+from database import Base, engine, get_db
+import models
+
+from sqlalchemy.orm import Session
 
 app = FastAPI()
+Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 def root():
@@ -17,34 +22,51 @@ class Activo(BaseModel):
 activos_db = []  # lista en memoria por ahora
 
 @app.get("/activos")
-def listar_activos():
-    return activos_db
+def listar_activos(db: Session = Depends(get_db)):
+    return db.query(models.Activo).all()
 
 @app.get("/activos/{ticker}")
-def obtener_activo(ticker: str):
-    return {"ticker": ticker, "mensaje": f"Datos de {ticker}"}
+def obtener_activo(ticker: str, db: Session = Depends(get_db)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker).first()
+    if activo is None:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    return activo
 
 @app.get("/buscar")
 def buscar_activos(ticker: str = None, min_precio: float = None):
     return {"ticker": ticker, "min_precio": min_precio}
 
 @app.post("/activos")
-def crear_activo(activo: Activo):
-    activos_db.append(activo)
-    return activo
+def crear_activo(activo: Activo, db: Session = Depends(get_db)):
+    nuevo_activo = models.Activo(**activo.model_dump())
+    db.add(nuevo_activo)
+    db.commit()
+    db.refresh(nuevo_activo)
+    return nuevo_activo
 
 @app.put("/activos/{ticker}")
-def actualizar_activo(ticker: str, activo_nuevo: Activo):
-    for i, a in enumerate(activos_db):
-        if a.ticker == ticker:
-            activos_db[i] = activo_nuevo
-            return activo_nuevo
-    raise HTTPException(status_code=404, detail="Activo no encontrado")
+def actualizar_activo(ticker: str, activo_nuevo: Activo, db: Session = Depends(get_db)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker).first()
+    if activo is None:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    
+    activo.ticker = activo_nuevo.ticker
+    activo.nombre = activo_nuevo.nombre
+    activo.precio = activo_nuevo.precio
+    activo.cantidad = activo_nuevo.cantidad
+
+    # for key, value in activo_nuevo.model_dump().items():   -----> Esto es mas profesional
+    #     setattr(activo, key, value)
+    
+    db.commit()
+    db.refresh(activo)
+    return activo
 
 @app.delete("/activos/{ticker}")
-def eliminar_activo(ticker: str):
-    global activos_db
-    if not any(a.ticker == ticker for a in activos_db):
+def eliminar_activo(ticker: str, db: Session = Depends(get_db)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker).first()
+    if activo is None:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
-    activos_db = [a for a in activos_db if a.ticker != ticker]
-    return f'{ticker} borrado exitosamente'
+    db.delete(activo)
+    db.commit()
+    return {"detalle": f"{ticker} borrado exitosamente"}
