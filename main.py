@@ -6,8 +6,13 @@ import models
 
 from sqlalchemy.orm import Session
 
+from google import genai
+from dotenv import load_dotenv
+
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
+load_dotenv()
+gemini_client = genai.Client()
 
 @app.get("/")
 def root():
@@ -19,7 +24,9 @@ class Activo(BaseModel):
     precio: float = Field(gt=0)  # greater than 0
     cantidad: float = Field(default=0.0, ge=0)  # greater or equal 0
 
-activos_db = []  # lista en memoria por ahora
+class Pregunta(BaseModel):
+    texto: str
+
 
 @app.get("/activos")
 def listar_activos(db: Session = Depends(get_db)):
@@ -43,6 +50,14 @@ def crear_activo(activo: Activo, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nuevo_activo)
     return nuevo_activo
+
+@app.post("/preguntar")
+def preguntar_ia(pregunta: Pregunta):
+    response = gemini_client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=pregunta.texto
+    )
+    return {"respuesta": response.text}
 
 @app.put("/activos/{ticker}")
 def actualizar_activo(ticker: str, activo_nuevo: Activo, db: Session = Depends(get_db)):
