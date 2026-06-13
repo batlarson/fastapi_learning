@@ -27,6 +27,10 @@ class Activo(BaseModel):
 class Pregunta(BaseModel):
     texto: str
 
+class PreguntaActivo(BaseModel):
+    ticker: str
+    pregunta: str
+
 
 @app.get("/activos")
 def listar_activos(db: Session = Depends(get_db)):
@@ -56,6 +60,30 @@ def preguntar_ia(pregunta: Pregunta):
     response = gemini_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=pregunta.texto
+    )
+    return {"respuesta": response.text}
+
+@app.post("/preguntar-activo")
+def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get_db)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == data.ticker).first()
+    if activo is None:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    
+    contexto = f"""
+    Tengo el siguiente activo en mi cartera:
+    - Ticker: {activo.ticker}
+    - Nombre: {activo.nombre}
+    - Precio actual: {activo.precio}
+    - Cantidad: {activo.cantidad}
+    
+    Pregunta del usuario: {data.pregunta}
+    
+    Responde de forma concisa y útil para un inversor.
+    """
+    
+    response = gemini_client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=contexto
     )
     return {"respuesta": response.text}
 
