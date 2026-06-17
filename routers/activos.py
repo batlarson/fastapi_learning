@@ -6,7 +6,7 @@ sys.path.insert(0, '..')
 import models
 from google import genai
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from decimal import Decimal
 
 
@@ -16,10 +16,9 @@ gemini_client = genai.Client()
 router = APIRouter()
 
 class Activo(BaseModel):
-    ticker: str
+    ticker: str = Field(max_length=5)
     nombre: str
-    precio: Decimal
-    cantidad: Decimal
+
 
 class Pregunta(BaseModel):
     texto: str

@@ -4,12 +4,9 @@ from database import get_db
 import sys
 sys.path.insert(0, '..')
 import models
-from google import genai
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from decimal import Decimal
-
-load_dotenv()
 
 
 router = APIRouter()
@@ -25,9 +22,9 @@ class Compra(BaseModel):
 @router.get("/compras/{activo_id}")
 def listar_compras(activo_id: int, db: Session = Depends(get_db)):
     compras = db.query(models.Compra).filter(models.Compra.activo_id == activo_id).all()
-    if compras is None:
+    if not compras:
         raise HTTPException(status_code=404, detail="Compras no encontradas")
-    return db.query(models.Compra).all()
+    return compras
 
 @router.post("/compras")
 def crear_compra(compra: Compra, db: Session = Depends(get_db)):
