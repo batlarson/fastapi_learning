@@ -19,6 +19,15 @@ class Activo(BaseModel):
     ticker: str = Field(max_length=5)
     nombre: str
 
+class ActivoResponse(BaseModel):
+    id: int
+    ticker: str
+    nombre: str
+    precio: Decimal | None = None
+    cantidad: Decimal | None = None
+    
+    class Config:
+        from_attributes = True
 
 class Pregunta(BaseModel):
     texto: str
@@ -28,9 +37,40 @@ class PreguntaActivo(BaseModel):
     pregunta: str
 
 
-@router.get("/activos")
+@router.get("/activos", response_model=list[ActivoResponse])
 def listar_activos(db: Session = Depends(get_db)):
-    return db.query(models.Activo).all()
+    activos = db.query(models.Activo).all()
+    resultado = []
+    for activo in activos:
+        compras = db.query(models.Compra).filter(models.Compra.activo_id == activo.id).all()
+        cantidad = sum(c.cantidad for c in compras) if compras else 0
+        resultado.append(ActivoResponse(
+            id=activo.id,
+            ticker=activo.ticker,
+            nombre=activo.nombre,
+            cantidad=cantidad,
+            precio=None
+        ))
+    return resultado
+
+# from sqlalchemy import func
+
+# @router.get("/activos", response_model=list[ActivoResponse])
+# def listar_activos(db: Session = Depends(get_db)):
+#     activos = db.query(models.Activo).all()
+#     resultado = []
+#     for activo in activos:
+#         cantidad = db.query(func.sum(models.Compra.cantidad))\
+#             .filter(models.Compra.activo_id == activo.id)\                        PARA CALCULOS EN LA BASE DE DATOS DIRECTAMENTE SIN TRAER LOS DATOS EN LOOP AL BACKEND
+#             .scalar() or 0
+#         resultado.append(ActivoResponse(
+#             id=activo.id,
+#             ticker=activo.ticker,
+#             nombre=activo.nombre,
+#             cantidad=float(cantidad),
+#             precio=None
+#         ))
+#     return resultado
 
 @router.get("/activos/{ticker}")
 def obtener_activo(ticker: str, db: Session = Depends(get_db)):
@@ -98,8 +138,6 @@ def actualizar_activo(ticker: str, activo_nuevo: Activo, db: Session = Depends(g
     
     activo.ticker = activo_nuevo.ticker
     activo.nombre = activo_nuevo.nombre
-    activo.precio = activo_nuevo.precio
-    activo.cantidad = activo_nuevo.cantidad
 
     # for key, value in activo_nuevo.model_dump().items():   -----> Esto es mas profesional
     #     setattr(activo, key, value)
