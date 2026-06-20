@@ -8,6 +8,7 @@ from google import genai
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from decimal import Decimal
+import yfinance as yf
 
 
 load_dotenv()
@@ -44,12 +45,16 @@ def listar_activos(db: Session = Depends(get_db)):
     for activo in activos:
         compras = db.query(models.Compra).filter(models.Compra.activo_id == activo.id).all()
         cantidad = sum(c.cantidad for c in compras) if compras else 0
+        
+        ticker_yf = yf.Ticker(activo.ticker)
+        precio = ticker_yf.info.get('currentPrice')
+        
         resultado.append(ActivoResponse(
             id=activo.id,
             ticker=activo.ticker,
             nombre=activo.nombre,
             cantidad=cantidad,
-            precio=None
+            precio=precio
         ))
     return resultado
 
