@@ -77,8 +77,10 @@ def listar_activos(db: Session = Depends(get_db)):
 #         ))
 #     return resultado
 
+from auth import obtener_usuario_actual
+
 @router.get("/activos/{ticker}")
-def obtener_activo(ticker: str, db: Session = Depends(get_db)):
+def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario: str = Depends(obtener_usuario_actual)):
     activo = db.query(models.Activo).filter(models.Activo.ticker == ticker).first()
     if activo is None:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
