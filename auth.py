@@ -40,12 +40,6 @@ def obtener_usuario_actual(token: str = Depends(oauth2_scheme)):
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def hashear_password(password: str) -> str:
-    """Hash a password using the configured passlib scheme.
-
-    Uses the 'bcrypt_sha256' scheme (via passlib) to hash the provided password.
-    Expects a str (text) password; returns a bcrypt-formatted hash string suitable
-    for storage in a database.
-    """
     return pwd_context.hash(password)
 
 def verificar_password(password: str, password_hash: str) -> bool:
