@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 import os
 from dotenv import load_dotenv
+from passlib.context import CryptContext
 
 load_dotenv()
 
@@ -35,3 +36,17 @@ def obtener_usuario_actual(token: str = Depends(oauth2_scheme)):
     if payload is None:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
     return payload.get("sub")  # "sub" es donde guardamos el username
+
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+def hashear_password(password: str) -> str:
+    """Hash a password using the configured passlib scheme.
+
+    Uses the 'bcrypt_sha256' scheme (via passlib) to hash the provided password.
+    Expects a str (text) password; returns a bcrypt-formatted hash string suitable
+    for storage in a database.
+    """
+    return pwd_context.hash(password)
+
+def verificar_password(password: str, password_hash: str) -> bool:
+    return pwd_context.verify(password, password_hash)

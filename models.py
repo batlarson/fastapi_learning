@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Numeric, ForeignKey
 from database import Base
-from pydantic import BaseModel, Field
+
 
 class Activo(Base):
     __tablename__ = "activos"
@@ -19,3 +19,10 @@ class Compra(Base):
     precio = Column(Numeric(10, 2))
     cantidad = Column(Numeric(15, 8))
     tipo_cambio = Column(Numeric(10, 6))
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True)
+    password_hash = Column(String(255))
