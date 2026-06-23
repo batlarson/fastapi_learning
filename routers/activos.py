@@ -6,7 +6,7 @@ sys.path.insert(0, '..')
 import models
 from google import genai
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from decimal import Decimal
 import yfinance as yf
 
@@ -21,14 +21,13 @@ class Activo(BaseModel):
     nombre: str
 
 class ActivoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     ticker: str
     nombre: str
     precio: Decimal | None = None
     cantidad: Decimal | None = None
-    
-    class Config:
-        from_attributes = True
 
 class Pregunta(BaseModel):
     texto: str
