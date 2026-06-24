@@ -95,7 +95,7 @@ def crear_activo(activo: Activo, db: Session = Depends(get_db)):
     return nuevo_activo
 
 @router.post("/preguntar")
-def preguntar_ia(pregunta: Pregunta):
+async def preguntar_ia(pregunta: Pregunta):
     response = gemini_client.models.generate_content(
         model="gemini-2.5-flash",
         contents=pregunta.texto
@@ -103,12 +103,16 @@ def preguntar_ia(pregunta: Pregunta):
     return {"respuesta": response.text}
 
 @router.post("/preguntar-activo")
-def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get_db)):
+async def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get_db)):
     activo = db.query(models.Activo).filter(models.Activo.ticker == data.ticker).first()
     if activo is None:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
     compras = db.query(models.Compra).filter(models.Compra.activo_id == activo.id).all()
+    cantidad = sum(c.cantidad for c in compras) if compras else 0
+    
+    ticker_yf = yf.Ticker(activo.ticker)
+    precio = ticker_yf.info.get('currentPrice', 'no disponible')
     
     compras_texto = "\n".join([
         f"  - {c.cantidad} acciones a {c.precio}$ el {c.fecha_compra}"
@@ -119,8 +123,8 @@ def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get_db)):
     Tengo el siguiente activo en mi cartera:
     - Ticker: {activo.ticker}
     - Nombre: {activo.nombre}
-    - Precio actual: {activo.precio}$
-    - Cantidad total: {activo.cantidad}
+    - Precio actual: {precio}$
+    - Cantidad total: {cantidad}
     
     Historial de compras:
     {compras_texto if compras_texto else "Sin compras registradas"}
