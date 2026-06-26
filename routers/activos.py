@@ -113,6 +113,7 @@ async def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get
     
     ticker_yf = yf.Ticker(activo.ticker)
     precio = ticker_yf.info.get('currentPrice', 'no disponible')
+    dividendo_anual = ticker_yf.info.get('dividendRate', 'no disponible')
     
     compras_texto = "\n".join([
         f"  - {c.cantidad} acciones a {c.precio}$ el {c.fecha_compra}"
@@ -125,6 +126,7 @@ async def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get
     - Nombre: {activo.nombre}
     - Precio actual: {precio}$
     - Cantidad total: {cantidad}
+    - Dividendo anual por acción: {dividendo_anual}$
     
     Historial de compras:
     {compras_texto if compras_texto else "Sin compras registradas"}
