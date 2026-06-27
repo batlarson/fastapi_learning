@@ -3,6 +3,16 @@ from main import app
 
 client = TestClient(app)
 
+def test_login_correcto():
+    client.post("/registro", json={"username": "test_login", "password": "test123"})
+    response = client.post("/login", data={"username": "test_login", "password": "test123"})
+    assert response.status_code == 200
+    assert "access_token" in response.json()
+
+def test_login_incorrecto():
+    response = client.post("/login", data={"username": "noexiste", "password": "mal"})
+    assert response.status_code == 401
+
 def test_listar_activos():
     # 1. Registro
     client.post("/registro", json={"username": "test_user", "password": "test123"})
