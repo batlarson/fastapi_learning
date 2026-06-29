@@ -13,6 +13,17 @@ def test_login_incorrecto():
     response = client.post("/login", data={"username": "noexiste", "password": "mal"})
     assert response.status_code == 401
 
+def test_crear_activo():
+    client.post("/registro", json={"username": "test_crear", "password": "test123"})
+
+    response = client.post("/login", data={"username": "test_crear", "password": "test123"})
+    print(response.json())
+    token = response.json()["access_token"]
+
+    response = client.post("/activos", headers={"Authorization": f"Bearer {token}"}, json={"ticker": "MAIN", "nombre": "Main Street Capital"})
+    assert response.status_code == 200
+
+
 def test_listar_activos():
     # 1. Registro
     client.post("/registro", json={"username": "test_user", "password": "test123"})
