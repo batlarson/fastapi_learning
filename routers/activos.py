@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from database import get_db
 import sys
@@ -35,6 +35,9 @@ class Pregunta(BaseModel):
 class PreguntaActivo(BaseModel):
     ticker: str
     pregunta: str
+
+def registrar_log(ticker: str, nombre: str):
+    print(f"LOG: Se ha creado el activo {ticker} - {nombre}")
 
 
 @router.get("/activos", response_model=list[ActivoResponse])
@@ -87,11 +90,14 @@ def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario: str = De
 
 
 @router.post("/activos")
-def crear_activo(activo: Activo, db: Session = Depends(get_db)):
+def crear_activo(activo: Activo, db: Session = Depends(get_db), background_tasks: BackgroundTasks = BackgroundTasks()):
     nuevo_activo = models.Activo(**activo.model_dump())
     db.add(nuevo_activo)
     db.commit()
     db.refresh(nuevo_activo)
+    
+    background_tasks.add_task(registrar_log, nuevo_activo.ticker, nuevo_activo.nombre)
+    
     return nuevo_activo
 
 @router.post("/preguntar")
