@@ -88,6 +88,14 @@ def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario: str = De
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     return activo
 
+@router.get("/activos/resumen")
+def resumen(db: Session = Depends(get_db), usuario: str = Depends(obtener_usuario_actual)):
+    activos = db.query(models.Activo).count()
+    compras = db.query(models.Compra).count()
+    return {
+        "numero_activos": activos,
+        "numero_compras": compras
+    }
 
 @router.post("/activos")
 def crear_activo(activo: Activo, db: Session = Depends(get_db), background_tasks: BackgroundTasks = BackgroundTasks()):
