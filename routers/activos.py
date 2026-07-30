@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ConfigDict
 from decimal import Decimal
 import yfinance as yf
+from auth import obtener_usuario_actual
 
 
 load_dotenv()
@@ -36,6 +37,11 @@ class PreguntaActivo(BaseModel):
     ticker: str
     pregunta: str
 
+class CarteraResumenResponse(BaseModel):
+    total_activos : int
+    total_compras : int
+
+
 def registrar_log(ticker: str, nombre: str):
     print(f"LOG: Se ha creado el activo {ticker} - {nombre}")
 
@@ -60,6 +66,18 @@ def listar_activos(db: Session = Depends(get_db)):
         ))
     return resultado
 
+
+@router.get("/resumen", response_model=CarteraResumenResponse)
+def resumen_catera(db: Session = Depends(get_db), usuario: str = Depends(obtener_usuario_actual)) -> CarteraResumenResponse:
+    activos = db.query(models.Activo).count()
+    compras = db.query(models.Compra).count()
+
+    return CarteraResumenResponse(
+    total_activos=activos,
+    total_compras=compras
+    )
+
+
 # from sqlalchemy import func
 
 # @router.get("/activos", response_model=list[ActivoResponse])
@@ -79,7 +97,7 @@ def listar_activos(db: Session = Depends(get_db)):
 #         ))
 #     return resultado
 
-from auth import obtener_usuario_actual
+
 
 @router.get("/activos/{ticker}")
 def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario: str = Depends(obtener_usuario_actual)):
