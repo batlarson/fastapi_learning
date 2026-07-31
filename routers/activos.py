@@ -6,7 +6,7 @@ sys.path.insert(0, '..')
 import models
 from google import genai
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from decimal import Decimal
 import yfinance as yf
 from auth import obtener_usuario_actual
@@ -20,6 +20,13 @@ router = APIRouter()
 class Activo(BaseModel):
     ticker: str = Field(max_length=5)
     nombre: str
+
+    @field_validator('ticker')
+    @classmethod
+    def ticker_formato(cls, v):
+        if len(v) > 10:
+            raise ValueError('Ticker demasiado largo')
+        return v.upper()
 
 class CompraEnActivo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
