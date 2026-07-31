@@ -69,7 +69,7 @@ def listar_activos(db: Session = Depends(get_db)):
     activos = db.query(models.Activo).all()
     resultado = []
     for activo in activos:
-        compras = db.query(models.Compra).filter(models.Compra.activo_id == activo.id).all()
+        compras = activo.compras
         cantidad = sum(c.cantidad for c in compras) if compras else 0
         
         ticker_yf = yf.Ticker(activo.ticker)
