@@ -21,6 +21,14 @@ class Activo(BaseModel):
     ticker: str = Field(max_length=5)
     nombre: str
 
+class CompraEnActivo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    fecha_compra: str
+    precio: float
+    cantidad: float
+    tipo_cambio: float
+
 class ActivoResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
@@ -29,6 +37,7 @@ class ActivoResponse(BaseModel):
     nombre: str
     precio: Decimal | None = None
     cantidad: Decimal | None = None
+    compras: list[CompraEnActivo] = []
 
 class Pregunta(BaseModel):
     texto: str
@@ -40,6 +49,8 @@ class PreguntaActivo(BaseModel):
 class CarteraResumenResponse(BaseModel):
     total_activos : int
     total_compras : int
+
+
 
 
 def registrar_log(ticker: str, nombre: str):
@@ -62,7 +73,8 @@ def listar_activos(db: Session = Depends(get_db)):
             ticker=activo.ticker,
             nombre=activo.nombre,
             cantidad=cantidad,
-            precio=precio
+            precio=precio,
+            compras=compras
         ))
     return resultado
 
