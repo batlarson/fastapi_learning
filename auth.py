@@ -3,6 +3,9 @@ from jose import jwt, JWTError
 import os
 from dotenv import load_dotenv
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+from database import get_db
+import models
 
 load_dotenv()
 
@@ -31,11 +34,16 @@ from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-def obtener_usuario_actual(token: str = Depends(oauth2_scheme)):
+def obtener_usuario_actual(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     payload = verificar_token(token)
     if payload is None:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
-    return payload.get("sub")  # "sub" es donde guardamos el username
+    username = payload.get("sub")  # "sub" es donde guardamos el username
+    usuario = db.query(models.Usuario).filter(models.Usuario.username == username).first()
+    if usuario is None:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+    return usuario
+
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 

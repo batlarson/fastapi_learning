@@ -65,8 +65,8 @@ def registrar_log(ticker: str, nombre: str):
 
 
 @router.get("/activos", response_model=list[ActivoResponse])
-def listar_activos(db: Session = Depends(get_db)):
-    activos = db.query(models.Activo).all()
+def listar_activos(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activos = db.query(models.Activo).filter(models.Activo.usuario_id == usuario.id).all()
     resultado = []
     for activo in activos:
         compras = activo.compras
@@ -87,7 +87,7 @@ def listar_activos(db: Session = Depends(get_db)):
 
 
 @router.get("/resumen", response_model=CarteraResumenResponse)
-def resumen_catera(db: Session = Depends(get_db), usuario: str = Depends(obtener_usuario_actual)) -> CarteraResumenResponse:
+def resumen_catera(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)) -> CarteraResumenResponse:
     activos = db.query(models.Activo).count()
     compras = db.query(models.Compra).count()
 
@@ -119,24 +119,26 @@ def resumen_catera(db: Session = Depends(get_db), usuario: str = Depends(obtener
 
 
 @router.get("/activos/{ticker}")
-def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario: str = Depends(obtener_usuario_actual)):
-    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker).first()
+def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
     if activo is None:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     return activo
 
 @router.get("/activos/resumen")
-def resumen(db: Session = Depends(get_db), usuario: str = Depends(obtener_usuario_actual)):
-    activos = db.query(models.Activo).count()
-    compras = db.query(models.Compra).count()
+def resumen(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activos = db.query(models.Activo).filter(models.Activo.usuario_id == usuario.id).count()
+    compras = db.query(models.Compra).filter(models.Compra.activo_id.in_(
+        db.query(models.Activo.id).filter(models.Activo.usuario_id == usuario.id)
+    )).count()
     return {
         "numero_activos": activos,
         "numero_compras": compras
     }
 
 @router.post("/activos")
-def crear_activo(activo: Activo, db: Session = Depends(get_db), background_tasks: BackgroundTasks = BackgroundTasks()):
-    nuevo_activo = models.Activo(**activo.model_dump())
+def crear_activo(activo: Activo, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual), background_tasks: BackgroundTasks = BackgroundTasks()):
+    nuevo_activo = models.Activo(**activo.model_dump(), usuario_id=usuario.id)
     db.add(nuevo_activo)
     db.commit()
     db.refresh(nuevo_activo)
@@ -154,8 +156,8 @@ async def preguntar_ia(pregunta: Pregunta):
     return {"respuesta": response.text}
 
 @router.post("/preguntar-activo")
-async def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get_db)):
-    activo = db.query(models.Activo).filter(models.Activo.ticker == data.ticker).first()
+async def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == data.ticker, models.Activo.usuario_id == usuario.id).first()
     if activo is None:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
@@ -194,8 +196,8 @@ async def preguntar_sobre_activo(data: PreguntaActivo, db: Session = Depends(get
     return {"respuesta": response.text}
 
 @router.put("/activos/{ticker}")
-def actualizar_activo(ticker: str, activo_nuevo: Activo, db: Session = Depends(get_db)):
-    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker).first()
+def actualizar_activo(ticker: str, activo_nuevo: Activo, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
     if activo is None:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     
@@ -210,8 +212,8 @@ def actualizar_activo(ticker: str, activo_nuevo: Activo, db: Session = Depends(g
     return activo
 
 @router.delete("/activos/{ticker}")
-def eliminar_activo(ticker: str, db: Session = Depends(get_db)):
-    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker).first()
+def eliminar_activo(ticker: str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
     if activo is None:
         raise HTTPException(status_code=404, detail="Activo no encontrado")
     db.delete(activo)
