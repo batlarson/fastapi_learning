@@ -29,6 +29,7 @@ class Compra(Base):
 
 class Dividendo(Base):
     __tablename__ = "dividendos"
+    
     id = Column(Integer, primary_key=True, index=True)
     activo_id = Column(Integer, ForeignKey("activos.id"))
     fecha_pago = Column(String)
