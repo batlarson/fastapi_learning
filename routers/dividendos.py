@@ -59,7 +59,7 @@ def crear_dividendo(div : DividendoCreate, db: Session = Depends(get_db), usuari
         raise HTTPException(status_code=404, detail="Activo no encontrado")
 
     nuevo_dividendo = models.Dividendo(**div.model_dump())
-    div_real = nuevo_dividendo.div_origen * nuevo_dividendo.cambio_nominal * (1 - nuevo_dividendo.impuesto / 100)
+    div_real = nuevo_dividendo.div_origen * nuevo_dividendo.cambio_nominal * (1 - nuevo_dividendo.impuesto / Decimal('100'))
 
     db.add(nuevo_dividendo)
     db.commit()

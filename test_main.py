@@ -46,3 +46,17 @@ def test_crear_compra():
 
     response = client.post("/compras", headers={"Authorization": f"Bearer {token}"}, json={"activo_id": 1, "fecha_compra": "2026-06-25", "precio": 55, "cantidad": 4, "tipo_cambio": 1.16})
     assert response.status_code == 200
+
+def test_crear_dividendo():
+    client.post("/registro", json={"username": "test_crear", "password": "test123"})
+
+    response = client.post("/login", data={"username": "test_crear", "password": "test123"})
+    token = response.json()["access_token"]
+
+    response = client.post("/activos", headers={"Authorization": f"Bearer {token}"}, json={"ticker": "MAIN", "nombre": "Main Street Capital"})
+
+    response = client.post("/compras", headers={"Authorization": f"Bearer {token}"}, json={"activo_id": 1, "fecha_compra": "2026-06-25", "precio": 55, "cantidad": 4, "tipo_cambio": 1.16})
+
+    response = client.post("/dividendos", headers={"Authorization": f"Bearer {token}"}, json={"activo_id": 1, "fecha_pago": "2026-07-25", "div_origen": 1.06, "cambio_nominal": 1.1675, "impuesto": 15})
+    assert response.status_code == 200
+    assert response.json()["ticker"] == "MAIN"
