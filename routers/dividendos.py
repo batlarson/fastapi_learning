@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database import get_db
 from pydantic import BaseModel, Field, ConfigDict
 from decimal import Decimal
@@ -31,6 +32,10 @@ class DividendoCreate(BaseModel):
     cambio_nominal: Decimal | None = None
     impuesto: int
 
+class DividendoResumenResponse(BaseModel):
+    numero_dividendos: int
+    total_dividendos: float | None = None
+
 
 @router.get("/dividendos/{ticker}", response_model=list[DividendoResponse])
 def listar_dividendos(ticker: str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
@@ -51,6 +56,25 @@ def listar_dividendos(ticker: str, db: Session = Depends(get_db), usuario = Depe
 
         ))
     return resultado
+
+@router.get("/dividendos/resumen", response_model=DividendoResumenResponse)
+def resumen(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    num_dividendos = db.query(models.Dividendo).filter(
+        models.Dividendo.activo_id.in_(
+            db.query(models.Activo.id).filter(models.Activo.usuario_id == usuario.id)
+        )
+    ).count()
+
+    total_dividendos = db.query(func.sum(models.Dividendo.div_origen)).filter(
+        models.Dividendo.activo_id.in_(
+            db.query(models.Activo.id).filter(models.Activo.usuario_id == usuario.id)
+        )
+    ).scalar()
+
+    return DividendoResumenResponse(
+        numero_dividendos=num_dividendos,
+        total_dividendos=total_dividendos
+    )
 
 @router.post("/dividendos", response_model=DividendoResponse)
 def crear_dividendo(div : DividendoCreate, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual),  background_tasks: BackgroundTasks = BackgroundTasks()):
