@@ -45,7 +45,7 @@ def listar_dividendos(ticker: str, db: Session = Depends(get_db), usuario = Depe
     dividendos = db.query(models.Dividendo).filter(models.Dividendo.activo_id == activo.id).all()
     resultado = []
     for div in dividendos:
-        dividendo = div.div_origen * div.cambio_nominal * (1 - div.impuesto / 100)
+        dividendo = div.div_origen * div.cambio_nominal * (1 - div.impuesto / Decimal('100'))
            
             
         resultado.append(DividendoResponse(
@@ -75,6 +75,26 @@ def resumen(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_act
         numero_dividendos=num_dividendos,
         total_dividendos=total_dividendos
     )
+
+
+@router.get("/dividendos/{ticker}/ultimo", response_model=DividendoResponse)
+def ultimo_div_acc(ticker:str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
+    if activo is None:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    ultimo_div = db.query(models.Dividendo).filter(models.Dividendo.activo_id == activo.id).order_by(models.Dividendo.fecha_pago.desc()).first()
+    if ultimo_div is None:
+        raise HTTPException(status_code=404, detail=f"{ticker} aun no ha pagado dividendos o no se han añadido")
+
+    div_real = ultimo_div.div_origen * ultimo_div.cambio_nominal * (1 - ultimo_div.impuesto / Decimal('100'))
+
+    return DividendoResponse(
+        id=ultimo_div.id,
+        ticker=activo.ticker,
+        fecha_pago=ultimo_div.fecha_pago,
+        dividendo=div_real,
+        )
+
 
 @router.post("/dividendos", response_model=DividendoResponse)
 def crear_dividendo(div : DividendoCreate, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual),  background_tasks: BackgroundTasks = BackgroundTasks()):
