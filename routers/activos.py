@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from database import get_db
 import sys
 sys.path.insert(0, '..')
@@ -56,6 +57,13 @@ class PreguntaActivo(BaseModel):
 class CarteraResumenResponse(BaseModel):
     total_activos : int
     total_compras : int
+
+class RendimientoResponse(BaseModel):
+    ticker: str
+    total_invertido: float | None = None
+    valor_actual: float | None = None
+    ganancia: float | None = None
+    porcentaje: float | None = None
 
 
 
@@ -135,6 +143,50 @@ def resumen(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_act
         "numero_activos": activos,
         "numero_compras": compras
     }
+
+@router.get("/activos/{ticker}/rendimiento", response_model=RendimientoResponse)
+def rendimiento_activo(ticker: str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
+    if activo is None:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+
+    total_invertido = db.query(
+        func.sum(models.Compra.precio * models.Compra.cantidad * models.Compra.tipo_cambio)
+    ).filter(
+        models.Compra.activo_id == activo.id
+    ).scalar()
+    total_invertido = total_invertido or 0
+
+    ticker_yf = yf.Ticker(ticker)
+    precio_actual = ticker_yf.info.get('currentPrice')
+    if precio_actual is None:
+        raise HTTPException(status_code=502, detail="No se pudo obtener el precio actual")
+
+    total_acciones = db.query(
+        func.sum(models.Compra.cantidad)
+    ).filter(
+        models.Compra.activo_id == activo.id
+    ).scalar()
+    total_acciones = total_acciones or 0
+
+    valor_actual = precio_actual*total_acciones
+
+    ganancia = valor_actual-total_invertido
+
+    if total_invertido > 0:
+        porcentaje = (ganancia / total_invertido) * 100
+    else:
+        porcentaje = 0
+
+    return RendimientoResponse(
+        ticker = ticker,
+        total_invertido=total_invertido,
+        valor_actual=valor_actual,
+        ganancia=ganancia,
+        porcentaje=porcentaje
+    )
+        
+
 
 @router.post("/activos")
 def crear_activo(activo: Activo, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual), background_tasks: BackgroundTasks = BackgroundTasks()):
