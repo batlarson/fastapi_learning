@@ -65,7 +65,19 @@ class RendimientoResponse(BaseModel):
     ganancia: float | None = None
     porcentaje: float | None = None
 
-
+class ComparacionResponse(BaseModel):
+    ticker1:str
+    precio_actual1:Decimal
+    total_invertido1:Decimal
+    cantidad_acciones1:Decimal
+    total_dividendos1:Decimal
+    cantidad_dividendos1: Decimal
+    ticker2:str
+    precio_actual2:Decimal
+    total_invertido2:Decimal
+    cantidad_acciones2:Decimal
+    total_dividendos2:Decimal
+    cantidad_dividendos2: Decimal   
 
 
 def registrar_log(ticker: str, nombre: str):
@@ -184,6 +196,80 @@ def rendimiento_activo(ticker: str, db: Session = Depends(get_db), usuario = Dep
         valor_actual=valor_actual,
         ganancia=ganancia,
         porcentaje=porcentaje
+    )
+
+@router.get("/activos/comparacion/{ticker1}/{ticker2}", response_model=ComparacionResponse)
+def comparar_activos(ticker1:str, ticker2:str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo1 = db.query(models.Activo).filter(models.Activo.ticker == ticker1, models.Activo.usuario_id == usuario.id).first()
+    if activo1 is None:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+    activo2 = db.query(models.Activo).filter(models.Activo.ticker == ticker2, models.Activo.usuario_id == usuario.id).first()
+    if activo2 is None:
+        raise HTTPException(status_code=404, detail="Activo no encontrado")
+
+    ticker_yf1 = yf.Ticker(ticker1)
+    precio_actual1 = ticker_yf1.info.get('currentPrice')
+
+    ticker_yf2 = yf.Ticker(ticker2)
+    precio_actual2 = ticker_yf2.info.get('currentPrice')
+
+    total_invertido1 = db.query(
+        func.sum(models.Compra.precio * models.Compra.cantidad * models.Compra.tipo_cambio)
+    ).filter(
+        models.Compra.activo_id == activo1.id
+    ).scalar()
+    total_invertido1 = total_invertido1 or 0
+
+    total_invertido2 = db.query(
+        func.sum(models.Compra.precio * models.Compra.cantidad * models.Compra.tipo_cambio)
+    ).filter(
+        models.Compra.activo_id == activo2.id
+    ).scalar()
+    total_invertido2 = total_invertido2 or 0
+
+    cantidad_acciones1 = db.query(
+        func.sum(models.Compra.cantidad)
+    ).filter(
+        models.Compra.activo_id == activo1.id
+    ).scalar()
+    cantidad_acciones1 = cantidad_acciones1 or 0
+
+    cantidad_acciones2 = db.query(
+        func.sum(models.Compra.cantidad)
+    ).filter(
+        models.Compra.activo_id == activo2.id
+    ).scalar()
+    cantidad_acciones2 = cantidad_acciones2 or 0
+
+    total_dividendos1 = db.query(
+        func.sum(models.Dividendo.div_origen * models.Dividendo.cambio_nominal * (1 - models.Dividendo.impuesto / 100))
+    ).filter(models.Dividendo.activo_id == activo1.id).scalar() or 0
+
+    cantidad_dividendos1 = db.query(models.Dividendo).filter(
+        models.Dividendo.activo_id == activo1.id
+    ).count()
+
+    total_dividendos2 = db.query(
+        func.sum(models.Dividendo.div_origen * models.Dividendo.cambio_nominal * (1 - models.Dividendo.impuesto / 100))
+    ).filter(models.Dividendo.activo_id == activo2.id).scalar() or 0
+
+    cantidad_dividendos2 = db.query(models.Dividendo).filter(
+        models.Dividendo.activo_id == activo2.id
+    ).count()
+
+    return ComparacionResponse(
+        ticker1 = ticker1,
+        precio_actual1 = precio_actual1,
+        total_invertido1 = total_invertido1,
+        cantidad_acciones1 = cantidad_acciones1,
+        total_dividendos1 = total_dividendos1,
+        cantidad_dividendos1 = cantidad_dividendos1,
+        ticker2 = ticker2,
+        precio_actual2 = precio_actual2,
+        total_invertido2 = total_invertido2,
+        cantidad_acciones2 = cantidad_acciones2,
+        total_dividendos2 = total_dividendos2,
+        cantidad_dividendos2 = cantidad_dividendos2,
     )
         
 
