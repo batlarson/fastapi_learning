@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from database import Base, engine
 import models
 from routers import activos, compras, auth, fotos, dividendos
 import time
+from exceptions import ActivoNoEncontradoError, PrecioNoDisponibleError
 
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -32,6 +34,20 @@ app.include_router(compras.router)
 app.include_router(dividendos.router)
 app.include_router(fotos.router)
 app.include_router(auth.router)
+
+@app.exception_handler(ActivoNoEncontradoError)
+async def activo_no_encontrado_handler(request: Request, exc: ActivoNoEncontradoError):
+    return JSONResponse(
+        status_code=404,
+        content={"message": f"Activo {exc.ticker} no ha sido encontrado"},
+    )
+
+@app.exception_handler(PrecioNoDisponibleError)
+async def precio_no_disponible_handler(request: Request, exc: PrecioNoDisponibleError):
+    return JSONResponse(
+        status_code=502,
+        content={"message": f"El precio {exc.ticker} no ha sido encontrado"},
+    )
 
 
 

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Request, FastAPI
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import get_db
@@ -11,6 +12,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 from decimal import Decimal
 import yfinance as yf
 from auth import obtener_usuario_actual
+from exceptions import ActivoNoEncontradoError, PrecioNoDisponibleError
 
 
 load_dotenv()
@@ -80,6 +82,7 @@ class ComparacionResponse(BaseModel):
     cantidad_dividendos2: Decimal   
 
 
+
 def registrar_log(ticker: str, nombre: str):
     print(f"LOG: Se ha creado el activo {ticker} - {nombre}")
 
@@ -138,13 +141,6 @@ def resumen_catera(db: Session = Depends(get_db), usuario = Depends(obtener_usua
 
 
 
-@router.get("/activos/{ticker}")
-def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
-    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
-    if activo is None:
-        raise HTTPException(status_code=404, detail="Activo no encontrado")
-    return activo
-
 @router.get("/activos/resumen")
 def resumen(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
     activos = db.query(models.Activo).filter(models.Activo.usuario_id == usuario.id).count()
@@ -156,11 +152,18 @@ def resumen(db: Session = Depends(get_db), usuario = Depends(obtener_usuario_act
         "numero_compras": compras
     }
 
+@router.get("/activos/{ticker}")
+def obtener_activo(ticker: str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
+    activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
+    if activo is None:
+        raise ActivoNoEncontradoError(ticker)
+    return activo
+
 @router.get("/activos/{ticker}/rendimiento", response_model=RendimientoResponse)
 def rendimiento_activo(ticker: str, db: Session = Depends(get_db), usuario = Depends(obtener_usuario_actual)):
     activo = db.query(models.Activo).filter(models.Activo.ticker == ticker, models.Activo.usuario_id == usuario.id).first()
     if activo is None:
-        raise HTTPException(status_code=404, detail="Activo no encontrado")
+        raise ActivoNoEncontradoError(ticker)
 
     total_invertido = db.query(
         func.sum(models.Compra.precio * models.Compra.cantidad * models.Compra.tipo_cambio)
@@ -172,7 +175,7 @@ def rendimiento_activo(ticker: str, db: Session = Depends(get_db), usuario = Dep
     ticker_yf = yf.Ticker(ticker)
     precio_actual = ticker_yf.info.get('currentPrice')
     if precio_actual is None:
-        raise HTTPException(status_code=502, detail="No se pudo obtener el precio actual")
+        raise PrecioNoDisponibleError(ticker)
 
     total_acciones = db.query(
         func.sum(models.Compra.cantidad)
